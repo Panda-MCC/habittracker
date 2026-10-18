@@ -1587,9 +1587,9 @@
                 <form id="loginForm">
                     <div style="display:flex; flex-direction:column; gap:11px;">
                         <div class="field full">
-                            <label for="loginIdentifier">Username or Email</label>
-                            <input id="loginIdentifier" name="identifier" autocomplete="username"
-                                placeholder="e.g. John Doe or you@email.com" required>
+                            <label for="loginIdentifier">Email address</label>
+                            <input id="loginIdentifier" name="identifier" type="email" autocomplete="email"
+                                placeholder="e.g. you@email.com" required>
                         </div>
                         <div class="field full">
                             <label for="loginPassword">Password</label>
@@ -1618,15 +1618,15 @@
                             <input id="signupName" name="name" maxlength="32" placeholder="e.g. John Doe" required>
                         </div>
                         <div class="field full">
-                            <label for="signupIdentifier">Username or Email</label>
-                            <input id="signupIdentifier" name="identifier" autocomplete="username" maxlength="40"
-                                placeholder="e.g. john_doe@email.com" required>
+                            <label for="signupIdentifier">Email address</label>
+                            <input id="signupIdentifier" name="identifier" type="email" autocomplete="email"
+                                maxlength="40" placeholder="e.g. you@email.com" required>
                         </div>
                         <div class="field full">
                             <label for="signupPassword">Password</label>
                             <div class="pwd-wrap">
                                 <input id="signupPassword" name="password" type="password" autocomplete="new-password"
-                                    placeholder="At least 4 characters" minlength="4" required>
+                                    placeholder="At least 6 characters" minlength="6" required>
                                 <button type="button" class="pwd-toggle" id="toggleSignupPwd"
                                     aria-label="Toggle password visibility">👁️</button>
                             </div>
@@ -1669,592 +1669,708 @@
         </section>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite">✦ &nbsp; <span id="toastText"></span></div>
-    <script>
-        (function () {
-            var KEY = "morrow-v1",
-                ACCOUNTS_KEY = "morrow_accounts_v2",
-                SESSION_KEY = "morrow_session_v2",
-                seeds = [
-                    { id: "water", name: "Drink water", emoji: "💧", category: "Wellbeing", target: 8, unit: "glasses", reward: 10, color: "#76a8d9", progress: 0, done: false },
-                    { id: "stretch", name: "Stretch a little", emoji: "🧘", category: "Movement", target: 15, unit: "minutes", reward: 15, color: "#cb91b0", progress: 0, done: false },
-                    { id: "read", name: "Read a few pages", emoji: "📖", category: "Mind", target: 20, unit: "pages", reward: 15, color: "#9b91d1", progress: 0, done: false },
-                    { id: "air", name: "Get some fresh air", emoji: "🌤️", category: "Outdoors", target: 30, unit: "minutes", reward: 20, color: "#79a77b", progress: 0, done: false }
-                ];
+    <script type="module">
+        // ─── Firebase SDK (CDN ES Modules) ───────────────────────────────
+        // Replace the config values below with YOUR Firebase project config.
+        // See firebase_setup_guide.md for step-by-step instructions.
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import {
+            getAuth,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged,
+            updateProfile
+        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import {
+            getFirestore,
+            doc,
+            getDoc,
+            setDoc
+        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-            function $(x) { return document.querySelector(x) }
-            function dateKey(d) { d = d || new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-") }
-            function fresh() { return { coins: 0, day: dateKey(), habits: JSON.parse(JSON.stringify(seeds)), history: [], dark: false } }
-            function esc(v) { return String(v || "").replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] }) }
+        // ┌──────────────────────────────────────────────────────────────────┐
+        // │  🔧  PASTE YOUR FIREBASE CONFIG HERE                            │
+        // └──────────────────────────────────────────────────────────────────┘
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
 
-            // --- Accounts & Multi-user Storage ---
-            function getAccounts() {
-                try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || [] } catch (e) { return [] }
-            }
-            function saveAccounts(arr) {
-                try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(arr)) } catch (e) { }
-            }
-            function getSession() {
-                try { return JSON.parse(localStorage.getItem(SESSION_KEY)) || null } catch (e) { return null }
-            }
-            function setSession(user) {
-                try {
-                    if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-                    else localStorage.removeItem(SESSION_KEY);
-                } catch (e) { }
-            }
+        // ─── Firebase Init ───────────────────────────────────────────────
+        let firebaseApp, auth, db, firebaseReady = false;
+        try {
+            firebaseApp = initializeApp(firebaseConfig);
+            auth = getAuth(firebaseApp);
+            db = getFirestore(firebaseApp);
+            // Firebase is ready only if we got real config (not placeholders)
+            firebaseReady = firebaseConfig.apiKey !== "YOUR_API_KEY";
+        } catch (e) {
+            console.warn("Firebase init failed — running in offline/guest mode.", e);
+        }
 
-            // Seed a demo account if brand new
-            (function ensureDemoAccount() {
-                var accs = getAccounts();
-                if (accs.length === 0) {
-                    accs.push({
-                        id: "demo_panda",
-                        name: "Panda Friend",
-                        identifier: "panda",
-                        avatar: "🐼",
-                        pwdHash: "demo123",
-                        createdAt: "Oct 2026",
-                        data: {
-                            coins: 45,
-                            day: dateKey(),
-                            habits: [
-                                { id: "water", name: "Hydrate with water", emoji: "💧", category: "Wellbeing", target: 8, unit: "glasses", reward: 10, color: "#76a8d9", progress: 4, done: false },
-                                { id: "walk", name: "Morning nature walk", emoji: "🌱", category: "Movement", target: 20, unit: "minutes", reward: 15, color: "#79a77b", progress: 20, done: true },
-                                { id: "read", name: "Read novel", emoji: "📖", category: "Mind", target: 15, unit: "pages", reward: 15, color: "#9b91d1", progress: 0, done: false }
-                            ],
-                            history: [{ date: dateKey(), done: ["walk"] }],
-                            dark: false
-                        }
-                    });
-                    saveAccounts(accs);
-                }
-            })();
+        // ─── Constants ───────────────────────────────────────────────────
+        var KEY = "morrow-v1",
+            SESSION_KEY = "morrow_session_v2",
+            seeds = [
+                { id: "water", name: "Drink water", emoji: "💧", category: "Wellbeing", target: 8, unit: "glasses", reward: 10, color: "#76a8d9", progress: 0, done: false },
+                { id: "stretch", name: "Stretch a little", emoji: "🧘", category: "Movement", target: 15, unit: "minutes", reward: 15, color: "#cb91b0", progress: 0, done: false },
+                { id: "read", name: "Read a few pages", emoji: "📖", category: "Mind", target: 20, unit: "pages", reward: 15, color: "#9b91d1", progress: 0, done: false },
+                { id: "air", name: "Get some fresh air", emoji: "🌤️", category: "Outdoors", target: 30, unit: "minutes", reward: 20, color: "#79a77b", progress: 0, done: false }
+            ];
 
-            var currentUser = getSession();
-            var s;
+        function $(x) { return document.querySelector(x) }
+        function dateKey(d) { d = d || new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-") }
+        function fresh() { return { coins: 0, day: dateKey(), habits: JSON.parse(JSON.stringify(seeds)), history: [], dark: false } }
+        function esc(v) { return String(v || "").replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] }) }
 
-            // Load state
-            function loadState() {
-                if (currentUser) {
-                    var accs = getAccounts();
-                    var match = accs.find(function (a) { return a.id === currentUser.id });
-                    if (match && match.data) {
-                        s = match.data;
-                    } else {
-                        try { s = JSON.parse(localStorage.getItem(KEY)) || fresh() } catch (e) { s = fresh() }
-                    }
+        // ─── Session helpers (lightweight — just tracks who's logged in) ─
+        function getSession() {
+            try { return JSON.parse(localStorage.getItem(SESSION_KEY)) || null } catch (e) { return null }
+        }
+        function setSession(user) {
+            try {
+                if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+                else localStorage.removeItem(SESSION_KEY);
+            } catch (e) { }
+        }
+
+        // ─── Firestore cloud sync helpers ────────────────────────────────
+        // Each Firebase user gets a doc at "users/{uid}" containing their habits, coins, history, etc.
+        async function cloudLoad(uid) {
+            if (!firebaseReady || !db) return null;
+            try {
+                var snap = await getDoc(doc(db, "users", uid));
+                if (snap.exists()) return snap.data();
+            } catch (e) { console.warn("Cloud load failed:", e); }
+            return null;
+        }
+
+        async function cloudSave(uid, data) {
+            if (!firebaseReady || !db) return;
+            try {
+                await setDoc(doc(db, "users", uid), data, { merge: true });
+            } catch (e) { console.warn("Cloud save failed:", e); }
+        }
+
+        // ─── App state ──────────────────────────────────────────────────
+        var currentUser = getSession();
+        var s;
+        var _saveTimeout = null;
+
+        // Load state: tries cloud first (if logged in), then localStorage
+        async function loadState() {
+            if (currentUser && currentUser.uid && firebaseReady) {
+                var cloudData = await cloudLoad(currentUser.uid);
+                if (cloudData) {
+                    s = cloudData;
                 } else {
+                    // First time cloud user — push local data up
                     try { s = JSON.parse(localStorage.getItem(KEY)) || fresh() } catch (e) { s = fresh() }
                 }
-
-                if (!Array.isArray(s.habits)) s.habits = JSON.parse(JSON.stringify(seeds));
-                if (!Array.isArray(s.history)) s.history = [];
-                if (!Number.isFinite(s.coins)) s.coins = 0;
-                if (s.day !== dateKey()) {
-                    s.habits.forEach(function (h) { h.done = false; h.progress = 0 });
-                    s.day = dateKey();
-                }
-                if (s.dark) document.body.classList.add("dark");
-                else document.body.classList.remove("dark");
+            } else {
+                try { s = JSON.parse(localStorage.getItem(KEY)) || fresh() } catch (e) { s = fresh() }
             }
 
-            loadState();
+            if (!Array.isArray(s.habits)) s.habits = JSON.parse(JSON.stringify(seeds));
+            if (!Array.isArray(s.history)) s.history = [];
+            if (!Number.isFinite(s.coins)) s.coins = 0;
+            if (s.day !== dateKey()) {
+                s.habits.forEach(function (h) { h.done = false; h.progress = 0 });
+                s.day = dateKey();
+            }
+            if (s.dark) document.body.classList.add("dark");
+            else document.body.classList.remove("dark");
+        }
 
-            function save() {
-                try {
-                    localStorage.setItem(KEY, JSON.stringify(s));
-                    if (currentUser) {
-                        var accs = getAccounts();
-                        var idx = accs.findIndex(function (a) { return a.id === currentUser.id });
-                        if (idx >= 0) {
-                            accs[idx].data = s;
-                            saveAccounts(accs);
-                        }
-                    }
-                } catch (e) { }
+        await loadState();
+
+        function save() {
+            try {
+                // Always save locally for offline access
+                localStorage.setItem(KEY, JSON.stringify(s));
+                // Debounced cloud save (avoids hammering Firestore on rapid slider changes)
+                if (currentUser && currentUser.uid && firebaseReady) {
+                    clearTimeout(_saveTimeout);
+                    _saveTimeout = setTimeout(function () {
+                        cloudSave(currentUser.uid, JSON.parse(JSON.stringify(s)));
+                    }, 800);
+                }
+            } catch (e) { }
+        }
+
+        var editing = null, timer;
+
+        function streak(id) {
+            var h = s.habits.find(function (x) { return x.id === id }), d = new Date(), n = 0;
+            if (!h || !h.done) d.setDate(d.getDate() - 1);
+            for (var i = 0; i < 365; i++) {
+                var r = s.history.find(function (x) { return x.date === dateKey(d) });
+                if (dateKey(d) === s.day && h && h.done) n++;
+                else if (r && r.done.indexOf(id) >= 0) n++;
+                else break;
+                d.setDate(d.getDate() - 1);
+            }
+            return n;
+        }
+
+        function card(h) {
+            var p = Math.min(h.target, h.progress || 0), pc = Math.round(p / h.target * 100), st = streak(h.id);
+            return '<article class="card ' + (h.done ? "done" : "") + '" data-card="' + esc(h.id) + '" style="--c:' + esc(h.color) + '"><div class="card-top"><div class="emoji">' + esc(h.emoji) + '</div><div class="namewrap"><span class="category">' + esc(h.category || "Daily") + '</span><div class="name">' + esc(h.name) + '</div></div><button class="edit" data-edit="' + esc(h.id) + '" aria-label="Customize">···</button></div><div class="progress-row"><span class="amount"><b class="val">' + p + '</b><small> / ' + h.target + ' ' + esc(h.unit) + '</small></span><span class="reward">🪙 ' + h.reward + ' coins</span></div><input class="progress" type="range" min="0" max="' + h.target + '" value="' + p + '" aria-label="' + esc(h.name) + ' progress" ' + (h.done ? "disabled" : "") + ' style="--fill:' + pc + '%"><div class="ends"><span>0</span><span>' + h.target + ' ' + esc(h.unit) + '</span></div><div class="card-foot"><span class="streak">🔥 ' + (st ? st + " day streak" : "A new little start") + '</span><button class="complete" data-done="' + esc(h.id) + '" ' + (h.done ? "disabled" : "") + '>' + (h.done ? "✓ Done for today" : "＋ Mark done · earn") + '</button></div></article>';
+        }
+
+        function renderWeek() {
+            var d0 = new Date(), ds = [];
+            for (var i = 6; i >= 0; i--) {
+                var d = new Date(d0);
+                d.setDate(d0.getDate() - i);
+                ds.push(d);
+            }
+            var max = Math.max(1, s.habits.length);
+            $("#days").innerHTML = ds.map(function (d) {
+                var k = dateKey(d),
+                    r = s.history.find(function (x) { return x.date === k }),
+                    n = k === s.day ? s.habits.filter(function (h) { return h.done }).length : (r ? r.done.length : 0),
+                    label = new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(d);
+                return '<div class="day ' + (k === s.day ? "today" : "") + '"><div class="bar"><i style="height:' + (n ? Math.max(20, n / max * 100) : 0) + '%"></i></div>' + label + '</div>';
+            }).join("");
+            var active = ds.filter(function (d) {
+                var k = dateKey(d), r = s.history.find(function (x) { return x.date === k });
+                return k === s.day ? s.habits.some(function (h) { return h.done }) : !!(r && r.done.length);
+            }).length;
+            $("#weekSummary").textContent = active ? active + " days with a little win" : "Every day is a fresh start.";
+        }
+
+        function updateUserUI() {
+            if (currentUser) {
+                $("#sideAvatar").textContent = currentUser.avatar || "🐼";
+                $("#sideName").textContent = currentUser.name || "Member";
+                $("#sideSub").textContent = firebaseReady ? "☁️ Cloud synced" : "Signed in · local";
+                $("#sideBadge").textContent = firebaseReady ? "Cloud" : "Member";
+                $("#sideBadge").classList.remove("guest");
+
+                $("#topAvatar").textContent = currentUser.avatar || "🐼";
+                $("#topName").textContent = (currentUser.name || "User").split(" ")[0];
+            } else {
+                $("#sideAvatar").textContent = "🐼";
+                $("#sideName").textContent = "Guest Friend";
+                $("#sideSub").textContent = "Tap to sign in / switch";
+                $("#sideBadge").textContent = "Guest";
+                $("#sideBadge").classList.add("guest");
+
+                $("#topAvatar").textContent = "👤";
+                $("#topName").textContent = "Sign in";
+            }
+        }
+
+        function render() {
+            $("#date").textContent = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" }).format(new Date());
+            $("#coins").textContent = s.coins.toLocaleString();
+            $("#count").textContent = s.habits.length;
+            $("#grid").innerHTML = s.habits.length ? s.habits.map(card).join("") : '<div class="empty">Add one small thing you would like to do each day. 🌱</div>';
+
+            var n = s.habits.filter(function (h) { return h.done }).length, t = s.habits.length;
+            $("#done").textContent = n + "/" + t;
+            $("#ring").style.setProperty("--p", (t ? n / t * 100 : 0) + "%");
+            $("#ringLabel").textContent = t && n === t ? "Lovely work today ✨" : n ? "Finding your rhythm" : "Your day is just beginning";
+            if (t && n === t) {
+                $("#heroTitle").textContent = "You made today a little brighter.";
+                $("#heroText").textContent = "Every little promise you kept is worth celebrating. Come back tomorrow for another fresh start.";
+            } else {
+                $("#heroTitle").textContent = "Build a life that feels like yours.";
             }
 
-            var editing = null, timer;
+            var level = Math.floor(s.coins / 100) + 1, p = s.coins % 100;
+            $("#level").textContent = "Level " + level;
+            $("#levelCoins").textContent = p + " / 100 coins";
+            $("#next").textContent = (100 - p) + " to go";
+            $("#levelFill").style.width = p + "%";
+            $("#levelText").textContent = s.coins ? (100 - p) + " more coins until your next level." : "Every small win gets you closer to the next level.";
 
-            function streak(id) {
-                var h = s.habits.find(function (x) { return x.id === id }), d = new Date(), n = 0;
-                if (!h || !h.done) d.setDate(d.getDate() - 1);
-                for (var i = 0; i < 365; i++) {
-                    var r = s.history.find(function (x) { return x.date === dateKey(d) });
-                    if (dateKey(d) === s.day && h && h.done) n++;
-                    else if (r && r.done.indexOf(id) >= 0) n++;
-                    else break;
-                    d.setDate(d.getDate() - 1);
-                }
-                return n;
-            }
+            updateUserUI();
+            renderWeek();
+            save();
+        }
 
-            function card(h) {
-                var p = Math.min(h.target, h.progress || 0), pc = Math.round(p / h.target * 100), st = streak(h.id);
-                return '<article class="card ' + (h.done ? "done" : "") + '" data-card="' + esc(h.id) + '" style="--c:' + esc(h.color) + '"><div class="card-top"><div class="emoji">' + esc(h.emoji) + '</div><div class="namewrap"><span class="category">' + esc(h.category || "Daily") + '</span><div class="name">' + esc(h.name) + '</div></div><button class="edit" data-edit="' + esc(h.id) + '" aria-label="Customize">···</button></div><div class="progress-row"><span class="amount"><b class="val">' + p + '</b><small> / ' + h.target + ' ' + esc(h.unit) + '</small></span><span class="reward">🪙 ' + h.reward + ' coins</span></div><input class="progress" type="range" min="0" max="' + h.target + '" value="' + p + '" aria-label="' + esc(h.name) + ' progress" ' + (h.done ? "disabled" : "") + ' style="--fill:' + pc + '%"><div class="ends"><span>0</span><span>' + h.target + ' ' + esc(h.unit) + '</span></div><div class="card-foot"><span class="streak">🔥 ' + (st ? st + " day streak" : "A new little start") + '</span><button class="complete" data-done="' + esc(h.id) + '" ' + (h.done ? "disabled" : "") + '>' + (h.done ? "✓ Done for today" : "＋ Mark done · earn") + '</button></div></article>';
-            }
+        function pop(text) {
+            $("#toastText").textContent = text;
+            $("#toast").classList.add("show");
+            clearTimeout(timer);
+            timer = setTimeout(function () { $("#toast").classList.remove("show") }, 2200);
+        }
 
-            function renderWeek() {
-                var d0 = new Date(), ds = [];
-                for (var i = 6; i >= 0; i--) {
-                    var d = new Date(d0);
-                    d.setDate(d0.getDate() - i);
-                    ds.push(d);
-                }
-                var max = Math.max(1, s.habits.length);
-                $("#days").innerHTML = ds.map(function (d) {
-                    var k = dateKey(d),
-                        r = s.history.find(function (x) { return x.date === k }),
-                        n = k === s.day ? s.habits.filter(function (h) { return h.done }).length : (r ? r.done.length : 0),
-                        label = new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(d);
-                    return '<div class="day ' + (k === s.day ? "today" : "") + '"><div class="bar"><i style="height:' + (n ? Math.max(20, n / max * 100) : 0) + '%"></i></div>' + label + '</div>';
-                }).join("");
-                var active = ds.filter(function (d) {
-                    var k = dateKey(d), r = s.history.find(function (x) { return x.date === k });
-                    return k === s.day ? s.habits.some(function (h) { return h.done }) : !!(r && r.done.length);
-                }).length;
-                $("#weekSummary").textContent = active ? active + " days with a little win" : "Every day is a fresh start.";
-            }
-
-            function updateUserUI() {
-                if (currentUser) {
-                    $("#sideAvatar").textContent = currentUser.avatar || "🐼";
-                    $("#sideName").textContent = currentUser.name || "Member";
-                    $("#sideSub").textContent = "Signed in · Tap for info";
-                    $("#sideBadge").textContent = "Member";
-                    $("#sideBadge").classList.remove("guest");
-
-                    $("#topAvatar").textContent = currentUser.avatar || "🐼";
-                    $("#topName").textContent = currentUser.name.split(" ")[0];
-                } else {
-                    $("#sideAvatar").textContent = "🐼";
-                    $("#sideName").textContent = "Guest Friend";
-                    $("#sideSub").textContent = "Tap to sign in / switch";
-                    $("#sideBadge").textContent = "Guest";
-                    $("#sideBadge").classList.add("guest");
-
-                    $("#topAvatar").textContent = "👤";
-                    $("#topName").textContent = "Sign in";
-                }
-            }
-
-            function render() {
-                $("#date").textContent = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" }).format(new Date());
-                $("#coins").textContent = s.coins.toLocaleString();
-                $("#count").textContent = s.habits.length;
-                $("#grid").innerHTML = s.habits.length ? s.habits.map(card).join("") : '<div class="empty">Add one small thing you would like to do each day. 🌱</div>';
-
-                var n = s.habits.filter(function (h) { return h.done }).length, t = s.habits.length;
-                $("#done").textContent = n + "/" + t;
-                $("#ring").style.setProperty("--p", (t ? n / t * 100 : 0) + "%");
-                $("#ringLabel").textContent = t && n === t ? "Lovely work today ✨" : n ? "Finding your rhythm" : "Your day is just beginning";
-                if (t && n === t) {
-                    $("#heroTitle").textContent = "You made today a little brighter.";
-                    $("#heroText").textContent = "Every little promise you kept is worth celebrating. Come back tomorrow for another fresh start.";
-                } else {
-                    $("#heroTitle").textContent = "Build a life that feels like yours.";
-                }
-
-                var level = Math.floor(s.coins / 100) + 1, p = s.coins % 100;
-                $("#level").textContent = "Level " + level;
-                $("#levelCoins").textContent = p + " / 100 coins";
-                $("#next").textContent = (100 - p) + " to go";
-                $("#levelFill").style.width = p + "%";
-                $("#levelText").textContent = s.coins ? (100 - p) + " more coins until your next level." : "Every small win gets you closer to the next level.";
-
-                updateUserUI();
-                renderWeek();
-                save();
-            }
-
-            function pop(text) {
-                $("#toastText").textContent = text;
-                $("#toast").classList.add("show");
-                clearTimeout(timer);
-                timer = setTimeout(function () { $("#toast").classList.remove("show") }, 2200);
-            }
-
-            function finish(id) {
-                var h = s.habits.find(function (x) { return x.id === id });
-                if (!h || h.done) return;
-                h.done = true;
-                h.progress = h.target;
-                s.coins += Number(h.reward);
-                var r = s.history.find(function (x) { return x.date === s.day });
-                if (!r) { r = { date: s.day, done: [] }; s.history.push(r) }
-                if (r.done.indexOf(id) < 0) r.done.push(id);
-                save();
-                render();
-                pop("Lovely work! +" + h.reward + " coins ✨");
-            }
-
-            // Habit modal
-            function openHabitModal(id) {
-                editing = id || null;
-                var h = id ? s.habits.find(function (x) { return x.id === id }) : null;
-                $("#form").reset();
-                $("#modalTitle").textContent = h ? "Customize your habit" : "Plant a new habit";
-                $("#save").textContent = h ? "Save changes" : "Add this habit";
-                $("#delete").hidden = !h;
-                $("#name").value = h ? h.name : "";
-                $("#emoji").value = h ? h.emoji : "🌱";
-                $("#category").value = h ? h.category : "";
-                $("#target").value = h ? h.target : 10;
-                $("#unit").value = h ? h.unit : "minutes";
-                $("#reward").value = h ? h.reward : 10;
-                $("#rewardVal").textContent = $("#reward").value + " coins";
-                var r = $('input[name="color"][value="' + (h ? h.color : "#79a77b") + '"]');
-                (r || $('input[name="color"]')).checked = true;
-                $("#backdrop").hidden = false;
-                document.body.style.overflow = "hidden";
-                setTimeout(function () { $("#name").focus() }, 20);
-            }
-
-            function closeHabitModal() {
-                $("#backdrop").hidden = true;
-                document.body.style.overflow = "";
-                editing = null;
-            }
-
-            // --- Auth Modal & Flow ---
-            var signupAvatar = "🐼", profAvatar = "🐼";
-
-            function openAuthModal() {
-                $("#authBackdrop").hidden = false;
-                document.body.style.overflow = "hidden";
-                hideAuthError();
-
-                if (currentUser) {
-                    // Show Profile View
-                    $("#authProfileView").hidden = false;
-                    $("#authFormsView").hidden = true;
-                    $("#authModalTitle").textContent = "Account & Profile";
-                    $("#authModalSub").textContent = "Your stats, level progress, and personal details.";
-
-                    $("#profBigAvatar").textContent = currentUser.avatar || "🐼";
-                    $("#profName").textContent = currentUser.name;
-                    $("#profEmail").textContent = currentUser.identifier;
-                    $("#profCoins").textContent = s.coins.toLocaleString();
-                    $("#profLevel").textContent = "Level " + (Math.floor(s.coins / 100) + 1);
-                    $("#profHabits").textContent = s.habits.length;
-
-                    $("#editProfName").value = currentUser.name;
-                    profAvatar = currentUser.avatar || "🐼";
-                    document.querySelectorAll("#profAvatarGrid .avatar-btn").forEach(function (btn) {
-                        btn.classList.toggle("selected", btn.dataset.avatar === profAvatar);
-                    });
-                } else {
-                    // Show Login / Sign Up View
-                    $("#authProfileView").hidden = true;
-                    $("#authFormsView").hidden = false;
-                    $("#authModalTitle").textContent = "Welcome to Habit App";
-                    $("#authModalSub").textContent = "Create an account or sign in to save your journey.";
-                    showTab("login");
-                }
-            }
-
-            function closeAuthModal() {
-                $("#authBackdrop").hidden = true;
-                document.body.style.overflow = "";
-                hideAuthError();
-            }
-
-            function showAuthError(msg) {
-                $("#authErrorMsg").textContent = msg;
-                $("#authError").hidden = false;
-            }
-
-            function hideAuthError() {
-                $("#authError").hidden = true;
-            }
-
-            function showTab(tab) {
-                hideAuthError();
-                if (tab === "login") {
-                    $("#tabLogin").classList.add("active");
-                    $("#tabSignup").classList.remove("active");
-                    $("#loginForm").hidden = false;
-                    $("#signupForm").hidden = true;
-                    setTimeout(function () { $("#loginIdentifier").focus() }, 50);
-                } else {
-                    $("#tabSignup").classList.add("active");
-                    $("#tabLogin").classList.remove("active");
-                    $("#signupForm").hidden = false;
-                    $("#loginForm").hidden = true;
-                    setTimeout(function () { $("#signupName").focus() }, 50);
-                }
-            }
-
-            // Avatar selectors
-            document.querySelectorAll("#signupAvatarGrid .avatar-btn").forEach(function (btn) {
-                btn.onclick = function () {
-                    document.querySelectorAll("#signupAvatarGrid .avatar-btn").forEach(function (b) { b.classList.remove("selected") });
-                    btn.classList.add("selected");
-                    signupAvatar = btn.dataset.avatar;
-                };
-            });
-
-            document.querySelectorAll("#profAvatarGrid .avatar-btn").forEach(function (btn) {
-                btn.onclick = function () {
-                    document.querySelectorAll("#profAvatarGrid .avatar-btn").forEach(function (b) { b.classList.remove("selected") });
-                    btn.classList.add("selected");
-                    profAvatar = btn.dataset.avatar;
-                    $("#profBigAvatar").textContent = profAvatar;
-                };
-            });
-
-            // Password strength calculation
-            $("#signupPassword").oninput = function (e) {
-                var val = e.target.value;
-                var fill = $("#strengthFill"), txt = $("#strengthText");
-                if (!val) {
-                    fill.style.width = "0%";
-                    txt.textContent = "Enter password";
-                    return;
-                }
-                var score = 0;
-                if (val.length >= 4) score += 1;
-                if (val.length >= 8) score += 1;
-                if (/[0-9]/.test(val)) score += 1;
-                if (/[A-Z]/.test(val) || /[^A-Za-z0-9]/.test(val)) score += 1;
-
-                if (score <= 1) {
-                    fill.style.width = "25%";
-                    fill.style.backgroundColor = "#e06c75";
-                    txt.textContent = "Weak";
-                } else if (score <= 3) {
-                    fill.style.width = "65%";
-                    fill.style.backgroundColor = "#d19a66";
-                    txt.textContent = "Fair";
-                } else {
-                    fill.style.width = "100%";
-                    fill.style.backgroundColor = "#4f7355";
-                    txt.textContent = "Strong ✨";
-                }
-            };
-
-            // Toggle password visibilities
-            $("#toggleLoginPwd").onclick = function () {
-                var input = $("#loginPassword");
-                var isPwd = input.type === "password";
-                input.type = isPwd ? "text" : "password";
-                $("#toggleLoginPwd").textContent = isPwd ? "🙈" : "👁️";
-            };
-
-            $("#toggleSignupPwd").onclick = function () {
-                var input = $("#signupPassword");
-                var isPwd = input.type === "password";
-                input.type = isPwd ? "text" : "password";
-                $("#toggleSignupPwd").textContent = isPwd ? "🙈" : "👁️";
-            };
-
-            // Login submission
-            $("#loginForm").onsubmit = function (e) {
-                e.preventDefault();
-                hideAuthError();
-                var id = $("#loginIdentifier").value.trim().toLowerCase();
-                var pwd = $("#loginPassword").value;
-
-                var accs = getAccounts();
-                var match = accs.find(function (a) {
-                    return a.identifier.toLowerCase() === id;
-                });
-
-                if (!match || match.pwdHash !== pwd) {
-                    showAuthError("Incorrect username/email or password.");
-                    return;
-                }
-
-                currentUser = { id: match.id, name: match.name, identifier: match.identifier, avatar: match.avatar };
-                setSession(currentUser);
-                loadState();
-                render();
-                closeAuthModal();
-                pop("Welcome back, " + match.name + "! ✨");
-            };
-
-            // Sign up submission
-            $("#signupForm").onsubmit = function (e) {
-                e.preventDefault();
-                hideAuthError();
-                var name = $("#signupName").value.trim();
-                var id = $("#signupIdentifier").value.trim().toLowerCase();
-                var pwd = $("#signupPassword").value;
-                var keepHabits = $("#keepHabitsCheck").checked;
-
-                if (pwd.length < 4) {
-                    showAuthError("Password must be at least 4 characters.");
-                    return;
-                }
-
-                var accs = getAccounts();
-                var exists = accs.some(function (a) { return a.identifier.toLowerCase() === id });
-                if (exists) {
-                    showAuthError("An account with this username/email already exists.");
-                    return;
-                }
-
-                var newAccount = {
-                    id: "u_" + Date.now(),
-                    name: name,
-                    identifier: id,
-                    avatar: signupAvatar,
-                    pwdHash: pwd,
-                    createdAt: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
-                    data: keepHabits ? JSON.parse(JSON.stringify(s)) : fresh()
-                };
-
-                accs.push(newAccount);
-                saveAccounts(accs);
-
-                currentUser = { id: newAccount.id, name: newAccount.name, identifier: newAccount.identifier, avatar: newAccount.avatar };
-                setSession(currentUser);
-                loadState();
-                render();
-                closeAuthModal();
-                pop("Account created! Welcome, " + name + " 🌱");
-            };
-
-            // Demo Login
-            $("#demoLoginBtn").onclick = function () {
-                var accs = getAccounts();
-                var demo = accs.find(function (a) { return a.id === "demo_panda" });
-                if (!demo) {
-                    showAuthError("Demo account not found.");
-                    return;
-                }
-                currentUser = { id: demo.id, name: demo.name, identifier: demo.identifier, avatar: demo.avatar };
-                setSession(currentUser);
-                loadState();
-                render();
-                closeAuthModal();
-                pop("Logged in as Demo Panda! 🐼✨");
-            };
-
-            // Logout
-            $("#logoutBtn").onclick = function () {
-                save(); // preserve state
-                currentUser = null;
-                setSession(null);
-                loadState();
-                render();
-                closeAuthModal();
-                pop("Logged out to Guest mode 🌱");
-            };
-
-            // Save profile changes
-            $("#saveProfBtn").onclick = function () {
-                if (!currentUser) return;
-                var newName = $("#editProfName").value.trim();
-                if (!newName) {
-                    showAuthError("Display name cannot be empty.");
-                    return;
-                }
-                currentUser.name = newName;
-                currentUser.avatar = profAvatar;
-
-                var accs = getAccounts();
-                var idx = accs.findIndex(function (a) { return a.id === currentUser.id });
-                if (idx >= 0) {
-                    accs[idx].name = newName;
-                    accs[idx].avatar = profAvatar;
-                    saveAccounts(accs);
-                }
-                setSession(currentUser);
-                render();
-                closeAuthModal();
-                pop("Profile updated ✨");
-            };
-
-            // Auth tabs & modal controls
-            $("#tabLogin").onclick = function () { showTab("login") };
-            $("#tabSignup").onclick = function () { showTab("signup") };
-            $("#userChip").onclick = openAuthModal;
-            $("#accountBtn").onclick = openAuthModal;
-            $("#authClose").onclick = closeAuthModal;
-            $("#authBackdrop").onclick = function (e) { if (e.target === $("#authBackdrop")) closeAuthModal() };
-
-            // Existing UI event bindings
-            $("#heroAdd").onclick = $("#add").onclick = function () { openHabitModal() };
-            $("#scroll").onclick = function () { $("#habits").scrollIntoView({ behavior: "smooth" }) };
-            $("#close").onclick = closeHabitModal;
-            $("#backdrop").onclick = function (e) { if (e.target === $("#backdrop")) closeHabitModal() };
-            document.onkeydown = function (e) {
-                if (e.key === "Escape") {
-                    if (!$("#authBackdrop").hidden) closeAuthModal();
-                    else if (!$("#backdrop").hidden) closeHabitModal();
-                }
-            };
-            $("#reward").oninput = function (e) { $("#rewardVal").textContent = e.target.value + " coins" };
-
-            $("#form").onsubmit = function (e) {
-                e.preventDefault();
-                var f = new FormData(e.currentTarget),
-                    old = editing ? s.habits.find(function (h) { return h.id === editing }) : null,
-                    t = Math.max(1, Math.min(200, +f.get("target") || 1)),
-                    h = {
-                        id: old ? old.id : "h" + Date.now(),
-                        name: String(f.get("name")).trim(),
-                        emoji: String(f.get("emoji") || "🌱"),
-                        category: String(f.get("category") || "").trim() || "Daily",
-                        target: t,
-                        unit: String(f.get("unit") || "times").trim(),
-                        reward: +f.get("reward") || 10,
-                        color: String(f.get("color") || "#79a77b"),
-                        progress: old && old.done ? t : Math.min(old ? old.progress || 0 : 0, t),
-                        done: old ? old.done : false
-                    };
-                if (old) s.habits[s.habits.indexOf(old)] = h;
-                else s.habits.push(h);
-                closeHabitModal();
-                render();
-                pop("Habit saved 🌱");
-            };
-
-            $("#delete").onclick = function () {
-                if (!editing) return;
-                s.habits = s.habits.filter(function (h) { return h.id !== editing });
-                closeHabitModal();
-                render();
-                pop("Habit removed");
-            };
-
-            $("#grid").onclick = function (e) {
-                var ed = e.target.closest("[data-edit]");
-                if (ed) { openHabitModal(ed.dataset.edit); return }
-                var b = e.target.closest("[data-done]");
-                if (b) finish(b.dataset.done);
-            };
-
-            $("#grid").oninput = function (e) {
-                if (!e.target.matches(".progress")) return;
-                var el = e.target.closest("[data-card]"),
-                    h = s.habits.find(function (x) { return x.id === el.dataset.card });
-                h.progress = +e.target.value;
-                el.querySelector(".val").textContent = h.progress;
-                e.target.style.setProperty("--fill", Math.round(h.progress / h.target * 100) + "%");
-                save();
-                if (h.progress >= h.target) finish(h.id);
-            };
-
-            $("#theme").onclick = function (e) {
-                s.dark = !s.dark;
-                document.body.classList.toggle("dark", s.dark);
-                e.currentTarget.textContent = s.dark ? "☀" : "☾";
-                e.currentTarget.setAttribute("aria-label", s.dark ? "Switch to light mode" : "Switch to dark mode");
-                save();
-            };
-
-            document.querySelectorAll(".nav a").forEach(function (a) {
-                a.onclick = function () {
-                    document.querySelectorAll(".nav a").forEach(function (x) { x.classList.remove("active") });
-                    a.classList.add("active");
-                };
-            });
-
-            if (s.dark) $("#theme").textContent = "☀";
+        function finish(id) {
+            var h = s.habits.find(function (x) { return x.id === id });
+            if (!h || h.done) return;
+            h.done = true;
+            h.progress = h.target;
+            s.coins += Number(h.reward);
+            var r = s.history.find(function (x) { return x.date === s.day });
+            if (!r) { r = { date: s.day, done: [] }; s.history.push(r) }
+            if (r.done.indexOf(id) < 0) r.done.push(id);
+            save();
             render();
-        })();
+            pop("Lovely work! +" + h.reward + " coins ✨");
+        }
+
+        // ─── Habit modal ─────────────────────────────────────────────────
+        function openHabitModal(id) {
+            editing = id || null;
+            var h = id ? s.habits.find(function (x) { return x.id === id }) : null;
+            $("#form").reset();
+            $("#modalTitle").textContent = h ? "Customize your habit" : "Plant a new habit";
+            $("#save").textContent = h ? "Save changes" : "Add this habit";
+            $("#delete").hidden = !h;
+            $("#name").value = h ? h.name : "";
+            $("#emoji").value = h ? h.emoji : "🌱";
+            $("#category").value = h ? h.category : "";
+            $("#target").value = h ? h.target : 10;
+            $("#unit").value = h ? h.unit : "minutes";
+            $("#reward").value = h ? h.reward : 10;
+            $("#rewardVal").textContent = $("#reward").value + " coins";
+            var r = $('input[name="color"][value="' + (h ? h.color : "#79a77b") + '"]');
+            (r || $('input[name="color"]')).checked = true;
+            $("#backdrop").hidden = false;
+            document.body.style.overflow = "hidden";
+            setTimeout(function () { $("#name").focus() }, 20);
+        }
+
+        function closeHabitModal() {
+            $("#backdrop").hidden = true;
+            document.body.style.overflow = "";
+            editing = null;
+        }
+
+        // ─── Auth Modal & Flow (Firebase-powered) ────────────────────────
+        var signupAvatar = "🐼", profAvatar = "🐼";
+
+        function openAuthModal() {
+            $("#authBackdrop").hidden = false;
+            document.body.style.overflow = "hidden";
+            hideAuthError();
+
+            if (currentUser) {
+                // Show Profile View
+                $("#authProfileView").hidden = false;
+                $("#authFormsView").hidden = true;
+                $("#authModalTitle").textContent = "Account & Profile";
+                $("#authModalSub").textContent = firebaseReady
+                    ? "Your data is synced to the cloud ☁️"
+                    : "Your stats, level progress, and personal details.";
+
+                $("#profBigAvatar").textContent = currentUser.avatar || "🐼";
+                $("#profName").textContent = currentUser.name;
+                $("#profEmail").textContent = currentUser.identifier || currentUser.email || "";
+                $("#profCoins").textContent = s.coins.toLocaleString();
+                $("#profLevel").textContent = "Level " + (Math.floor(s.coins / 100) + 1);
+                $("#profHabits").textContent = s.habits.length;
+
+                $("#editProfName").value = currentUser.name;
+                profAvatar = currentUser.avatar || "🐼";
+                document.querySelectorAll("#profAvatarGrid .avatar-btn").forEach(function (btn) {
+                    btn.classList.toggle("selected", btn.dataset.avatar === profAvatar);
+                });
+            } else {
+                // Show Login / Sign Up View
+                $("#authProfileView").hidden = true;
+                $("#authFormsView").hidden = false;
+                $("#authModalTitle").textContent = "Welcome to Habit App";
+                $("#authModalSub").textContent = firebaseReady
+                    ? "Sign in to sync your habits across devices ☁️"
+                    : "Create an account or sign in to save your journey.";
+                showTab("login");
+            }
+        }
+
+        function closeAuthModal() {
+            $("#authBackdrop").hidden = true;
+            document.body.style.overflow = "";
+            hideAuthError();
+        }
+
+        function showAuthError(msg) {
+            $("#authErrorMsg").textContent = msg;
+            $("#authError").hidden = false;
+        }
+
+        function hideAuthError() {
+            $("#authError").hidden = true;
+        }
+
+        function showTab(tab) {
+            hideAuthError();
+            if (tab === "login") {
+                $("#tabLogin").classList.add("active");
+                $("#tabSignup").classList.remove("active");
+                $("#loginForm").hidden = false;
+                $("#signupForm").hidden = true;
+                setTimeout(function () { $("#loginIdentifier").focus() }, 50);
+            } else {
+                $("#tabSignup").classList.add("active");
+                $("#tabLogin").classList.remove("active");
+                $("#signupForm").hidden = false;
+                $("#loginForm").hidden = true;
+                setTimeout(function () { $("#signupName").focus() }, 50);
+            }
+        }
+
+        // ─── Firebase-friendly error messages ────────────────────────────
+        function friendlyError(code) {
+            var map = {
+                "auth/email-already-in-use": "An account with this email already exists.",
+                "auth/invalid-email": "Please enter a valid email address.",
+                "auth/user-not-found": "No account found with this email.",
+                "auth/wrong-password": "Incorrect password. Please try again.",
+                "auth/weak-password": "Password must be at least 6 characters.",
+                "auth/too-many-requests": "Too many attempts. Please wait a moment.",
+                "auth/invalid-credential": "Incorrect email or password.",
+                "auth/network-request-failed": "Network error. Check your connection."
+            };
+            return map[code] || "Something went wrong. Please try again.";
+        }
+
+        // ─── Avatar selectors ────────────────────────────────────────────
+        document.querySelectorAll("#signupAvatarGrid .avatar-btn").forEach(function (btn) {
+            btn.onclick = function () {
+                document.querySelectorAll("#signupAvatarGrid .avatar-btn").forEach(function (b) { b.classList.remove("selected") });
+                btn.classList.add("selected");
+                signupAvatar = btn.dataset.avatar;
+            };
+        });
+
+        document.querySelectorAll("#profAvatarGrid .avatar-btn").forEach(function (btn) {
+            btn.onclick = function () {
+                document.querySelectorAll("#profAvatarGrid .avatar-btn").forEach(function (b) { b.classList.remove("selected") });
+                btn.classList.add("selected");
+                profAvatar = btn.dataset.avatar;
+                $("#profBigAvatar").textContent = profAvatar;
+            };
+        });
+
+        // ─── Password strength ───────────────────────────────────────────
+        $("#signupPassword").oninput = function (e) {
+            var val = e.target.value;
+            var fill = $("#strengthFill"), txt = $("#strengthText");
+            if (!val) {
+                fill.style.width = "0%";
+                txt.textContent = "Enter password";
+                return;
+            }
+            var score = 0;
+            if (val.length >= 6) score += 1;
+            if (val.length >= 10) score += 1;
+            if (/[0-9]/.test(val)) score += 1;
+            if (/[A-Z]/.test(val) || /[^A-Za-z0-9]/.test(val)) score += 1;
+
+            if (score <= 1) {
+                fill.style.width = "25%";
+                fill.style.backgroundColor = "#e06c75";
+                txt.textContent = "Weak";
+            } else if (score <= 3) {
+                fill.style.width = "65%";
+                fill.style.backgroundColor = "#d19a66";
+                txt.textContent = "Fair";
+            } else {
+                fill.style.width = "100%";
+                fill.style.backgroundColor = "#4f7355";
+                txt.textContent = "Strong ✨";
+            }
+        };
+
+        // ─── Toggle password visibility ──────────────────────────────────
+        $("#toggleLoginPwd").onclick = function () {
+            var input = $("#loginPassword");
+            var isPwd = input.type === "password";
+            input.type = isPwd ? "text" : "password";
+            $("#toggleLoginPwd").textContent = isPwd ? "🙈" : "👁️";
+        };
+
+        $("#toggleSignupPwd").onclick = function () {
+            var input = $("#signupPassword");
+            var isPwd = input.type === "password";
+            input.type = isPwd ? "text" : "password";
+            $("#toggleSignupPwd").textContent = isPwd ? "🙈" : "👁️";
+        };
+
+        // ─── Login (Firebase Auth) ───────────────────────────────────────
+        $("#loginForm").onsubmit = async function (e) {
+            e.preventDefault();
+            hideAuthError();
+            var email = $("#loginIdentifier").value.trim();
+            var pwd = $("#loginPassword").value;
+
+            if (!firebaseReady) {
+                showAuthError("Firebase is not configured yet. Please add your Firebase config to index.html.");
+                return;
+            }
+
+            // Ensure it looks like an email (Firebase requires email)
+            if (!email.includes("@")) {
+                showAuthError("Please enter a valid email address (Firebase requires email-based login).");
+                return;
+            }
+
+            try {
+                $("#submitLogin").disabled = true;
+                $("#submitLogin").textContent = "Signing in...";
+                var cred = await signInWithEmailAndPassword(auth, email, pwd);
+                var user = cred.user;
+
+                currentUser = {
+                    uid: user.uid,
+                    name: user.displayName || email.split("@")[0],
+                    email: user.email,
+                    identifier: user.email,
+                    avatar: "🐼"
+                };
+
+                // Try to load avatar from cloud data
+                var cloudData = await cloudLoad(user.uid);
+                if (cloudData && cloudData.avatar) {
+                    currentUser.avatar = cloudData.avatar;
+                }
+
+                setSession(currentUser);
+                await loadState();
+                render();
+                closeAuthModal();
+                pop("Welcome back, " + currentUser.name + "! ☁️✨");
+            } catch (err) {
+                showAuthError(friendlyError(err.code));
+            } finally {
+                $("#submitLogin").disabled = false;
+                $("#submitLogin").textContent = "Log in to Habit App";
+            }
+        };
+
+        // ─── Sign Up (Firebase Auth) ─────────────────────────────────────
+        $("#signupForm").onsubmit = async function (e) {
+            e.preventDefault();
+            hideAuthError();
+            var name = $("#signupName").value.trim();
+            var email = $("#signupIdentifier").value.trim();
+            var pwd = $("#signupPassword").value;
+            var keepHabits = $("#keepHabitsCheck").checked;
+
+            if (!firebaseReady) {
+                showAuthError("Firebase is not configured yet. Please add your Firebase config to index.html.");
+                return;
+            }
+
+            if (!email.includes("@")) {
+                showAuthError("Please enter a valid email address (Firebase requires email-based signup).");
+                return;
+            }
+
+            if (pwd.length < 6) {
+                showAuthError("Password must be at least 6 characters (Firebase requirement).");
+                return;
+            }
+
+            try {
+                $("#submitSignup").disabled = true;
+                $("#submitSignup").textContent = "Creating account...";
+                var cred = await createUserWithEmailAndPassword(auth, email, pwd);
+                var user = cred.user;
+
+                // Set display name on Firebase profile
+                await updateProfile(user, { displayName: name });
+
+                currentUser = {
+                    uid: user.uid,
+                    name: name,
+                    email: user.email,
+                    identifier: user.email,
+                    avatar: signupAvatar
+                };
+
+                // Prepare data for cloud
+                var dataToSave;
+                if (keepHabits) {
+                    dataToSave = JSON.parse(JSON.stringify(s));
+                } else {
+                    dataToSave = fresh();
+                }
+                dataToSave.avatar = signupAvatar;
+                dataToSave.displayName = name;
+
+                // Save to Firestore
+                await cloudSave(user.uid, dataToSave);
+
+                setSession(currentUser);
+                await loadState();
+                render();
+                closeAuthModal();
+                pop("Account created! Welcome, " + name + " ☁️🌱");
+            } catch (err) {
+                showAuthError(friendlyError(err.code));
+            } finally {
+                $("#submitSignup").disabled = false;
+                $("#submitSignup").textContent = "Create Account & Start 🌱";
+            }
+        };
+
+        // ─── Demo Login (offline only, for trying the app) ───────────────
+        $("#demoLoginBtn").onclick = function () {
+            // Demo mode works without Firebase — just local
+            currentUser = {
+                uid: null,
+                name: "Panda Friend",
+                email: "demo@habitapp.local",
+                identifier: "demo@habitapp.local",
+                avatar: "🐼"
+            };
+            // Load demo data
+            s = {
+                coins: 45,
+                day: dateKey(),
+                habits: [
+                    { id: "water", name: "Hydrate with water", emoji: "💧", category: "Wellbeing", target: 8, unit: "glasses", reward: 10, color: "#76a8d9", progress: 4, done: false },
+                    { id: "walk", name: "Morning nature walk", emoji: "🌱", category: "Movement", target: 20, unit: "minutes", reward: 15, color: "#79a77b", progress: 20, done: true },
+                    { id: "read", name: "Read novel", emoji: "📖", category: "Mind", target: 15, unit: "pages", reward: 15, color: "#9b91d1", progress: 0, done: false }
+                ],
+                history: [{ date: dateKey(), done: ["walk"] }],
+                dark: false
+            };
+            setSession(currentUser);
+            render();
+            closeAuthModal();
+            pop("Demo mode — local only 🐼✨");
+        };
+
+        // ─── Logout ──────────────────────────────────────────────────────
+        $("#logoutBtn").onclick = async function () {
+            save(); // preserve state before logout
+            if (firebaseReady && auth) {
+                try { await signOut(auth); } catch (e) { }
+            }
+            currentUser = null;
+            setSession(null);
+            await loadState();
+            render();
+            closeAuthModal();
+            pop("Logged out to Guest mode 🌱");
+        };
+
+        // ─── Save profile changes ────────────────────────────────────────
+        $("#saveProfBtn").onclick = async function () {
+            if (!currentUser) return;
+            var newName = $("#editProfName").value.trim();
+            if (!newName) {
+                showAuthError("Display name cannot be empty.");
+                return;
+            }
+            currentUser.name = newName;
+            currentUser.avatar = profAvatar;
+
+            // Update Firebase profile display name
+            if (firebaseReady && auth.currentUser) {
+                try { await updateProfile(auth.currentUser, { displayName: newName }); } catch (e) { }
+            }
+
+            // Save avatar & name into cloud data
+            s.avatar = profAvatar;
+            s.displayName = newName;
+            save();
+
+            setSession(currentUser);
+            render();
+            closeAuthModal();
+            pop("Profile updated ✨");
+        };
+
+        // ─── Auth tabs & modal controls ──────────────────────────────────
+        $("#tabLogin").onclick = function () { showTab("login") };
+        $("#tabSignup").onclick = function () { showTab("signup") };
+        $("#userChip").onclick = openAuthModal;
+        $("#accountBtn").onclick = openAuthModal;
+        $("#authClose").onclick = closeAuthModal;
+        $("#authBackdrop").onclick = function (e) { if (e.target === $("#authBackdrop")) closeAuthModal() };
+
+        // ─── Existing UI event bindings ──────────────────────────────────
+        $("#heroAdd").onclick = $("#add").onclick = function () { openHabitModal() };
+        $("#scroll").onclick = function () { $("#habits").scrollIntoView({ behavior: "smooth" }) };
+        $("#close").onclick = closeHabitModal;
+        $("#backdrop").onclick = function (e) { if (e.target === $("#backdrop")) closeHabitModal() };
+        document.onkeydown = function (e) {
+            if (e.key === "Escape") {
+                if (!$("#authBackdrop").hidden) closeAuthModal();
+                else if (!$("#backdrop").hidden) closeHabitModal();
+            }
+        };
+        $("#reward").oninput = function (e) { $("#rewardVal").textContent = e.target.value + " coins" };
+
+        $("#form").onsubmit = function (e) {
+            e.preventDefault();
+            var f = new FormData(e.currentTarget),
+                old = editing ? s.habits.find(function (h) { return h.id === editing }) : null,
+                t = Math.max(1, Math.min(200, +f.get("target") || 1)),
+                h = {
+                    id: old ? old.id : "h" + Date.now(),
+                    name: String(f.get("name")).trim(),
+                    emoji: String(f.get("emoji") || "🌱"),
+                    category: String(f.get("category") || "").trim() || "Daily",
+                    target: t,
+                    unit: String(f.get("unit") || "times").trim(),
+                    reward: +f.get("reward") || 10,
+                    color: String(f.get("color") || "#79a77b"),
+                    progress: old && old.done ? t : Math.min(old ? old.progress || 0 : 0, t),
+                    done: old ? old.done : false
+                };
+            if (old) s.habits[s.habits.indexOf(old)] = h;
+            else s.habits.push(h);
+            closeHabitModal();
+            render();
+            pop("Habit saved 🌱");
+        };
+
+        $("#delete").onclick = function () {
+            if (!editing) return;
+            s.habits = s.habits.filter(function (h) { return h.id !== editing });
+            closeHabitModal();
+            render();
+            pop("Habit removed");
+        };
+
+        $("#grid").onclick = function (e) {
+            var ed = e.target.closest("[data-edit]");
+            if (ed) { openHabitModal(ed.dataset.edit); return }
+            var b = e.target.closest("[data-done]");
+            if (b) finish(b.dataset.done);
+        };
+
+        $("#grid").oninput = function (e) {
+            if (!e.target.matches(".progress")) return;
+            var el = e.target.closest("[data-card]"),
+                h = s.habits.find(function (x) { return x.id === el.dataset.card });
+            h.progress = +e.target.value;
+            el.querySelector(".val").textContent = h.progress;
+            e.target.style.setProperty("--fill", Math.round(h.progress / h.target * 100) + "%");
+            save();
+            if (h.progress >= h.target) finish(h.id);
+        };
+
+        $("#theme").onclick = function (e) {
+            s.dark = !s.dark;
+            document.body.classList.toggle("dark", s.dark);
+            e.currentTarget.textContent = s.dark ? "☀" : "☾";
+            e.currentTarget.setAttribute("aria-label", s.dark ? "Switch to light mode" : "Switch to dark mode");
+            save();
+        };
+
+        document.querySelectorAll(".nav a").forEach(function (a) {
+            a.onclick = function () {
+                document.querySelectorAll(".nav a").forEach(function (x) { x.classList.remove("active") });
+                a.classList.add("active");
+            };
+        });
+
+        if (s.dark) $("#theme").textContent = "☀";
+        render();
     </script>
 </body>
 
