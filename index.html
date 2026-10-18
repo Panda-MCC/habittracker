@@ -1007,11 +1007,13 @@
             transition: all .2s ease;
             user-select: none;
         }
+
         .user-chip:hover {
             background: #e2ede0;
             border-color: #cbddc7;
             transform: translateY(-1px);
         }
+
         .user-avatar {
             width: 32px;
             height: 32px;
@@ -1020,13 +1022,15 @@
             display: grid;
             place-items: center;
             font-size: 17px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
             flex-shrink: 0;
         }
+
         .user-meta {
             flex: 1;
             min-width: 0;
         }
+
         .user-name {
             font-size: 11px;
             font-weight: 700;
@@ -1035,6 +1039,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
         .user-sub {
             font-size: 9px;
             color: #839185;
@@ -1042,6 +1047,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
         .user-badge {
             font-size: 8px;
             font-weight: 700;
@@ -1053,6 +1059,7 @@
             letter-spacing: .05em;
             flex-shrink: 0;
         }
+
         .user-badge.guest {
             background: #a0ada2;
         }
@@ -1072,12 +1079,14 @@
             cursor: pointer;
             transition: all .2s ease;
         }
+
         .account-btn:hover {
             border-color: #c9d8c6;
             background: #fbfdfa;
             transform: translateY(-1px);
-            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
         }
+
         .account-btn-avatar {
             width: 22px;
             height: 22px;
@@ -1091,6 +1100,7 @@
         .auth-modal {
             max-width: 420px;
         }
+
         .auth-tabs {
             display: flex;
             background: #edf3eb;
@@ -1099,6 +1109,7 @@
             margin-bottom: 16px;
             gap: 4px;
         }
+
         .auth-tab {
             flex: 1;
             border: 0;
@@ -1110,19 +1121,23 @@
             color: #718073;
             transition: all .15s ease;
         }
+
         .auth-tab.active {
             background: #fff;
             color: #3b563f;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
         }
+
         .pwd-wrap {
             position: relative;
             display: flex;
             align-items: center;
         }
+
         .pwd-wrap input {
             padding-right: 36px !important;
         }
+
         .pwd-toggle {
             position: absolute;
             right: 6px;
@@ -1136,21 +1151,25 @@
             align-items: center;
             justify-content: center;
         }
+
         .strength-wrap {
             margin-top: 6px;
         }
+
         .strength-bar {
             height: 4px;
             background: #e4ebe2;
             border-radius: 4px;
             overflow: hidden;
         }
+
         .strength-fill {
             height: 100%;
             width: 0;
             border-radius: 4px;
             transition: width .25s ease, background-color .25s ease;
         }
+
         .strength-label {
             display: flex;
             justify-content: space-between;
@@ -1158,12 +1177,14 @@
             color: #8d9a8e;
             margin-top: 4px;
         }
+
         .avatar-grid {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
             margin-top: 4px;
         }
+
         .avatar-btn {
             width: 36px;
             height: 36px;
@@ -1176,15 +1197,18 @@
             cursor: pointer;
             transition: all .15s ease;
         }
+
         .avatar-btn:hover {
             transform: scale(1.08);
             border-color: #9cb899;
         }
+
         .avatar-btn.selected {
             border-color: #4f7355;
             background: #eef5ec;
             box-shadow: 0 0 0 2px #b8d4b4;
         }
+
         .auth-banner-error {
             background: #fdf2f2;
             border: 1px solid #f8c9c9;
@@ -1198,15 +1222,18 @@
             align-items: center;
             gap: 8px;
         }
+
         .auth-banner-error[hidden] {
             display: none;
         }
+
         .demo-login-box {
             margin-top: 14px;
             padding-top: 14px;
             border-top: 1px dashed #e2e8df;
             text-align: center;
         }
+
         .demo-btn {
             width: 100%;
             background: #f2f7f0;
@@ -1218,6 +1245,7 @@
             font-weight: 700;
             transition: all .15s ease;
         }
+
         .demo-btn:hover {
             background: #e5eee2;
         }
@@ -1227,6 +1255,7 @@
             text-align: center;
             padding: 5px 0 10px;
         }
+
         .profile-avatar-big {
             width: 66px;
             height: 66px;
@@ -1239,23 +1268,27 @@
             margin: 0 auto 10px;
             box-shadow: 0 4px 12px rgba(79, 115, 85, 0.12);
         }
+
         .profile-name {
             font-size: 17px;
             font-weight: 750;
             color: var(--ink);
             margin: 0;
         }
+
         .profile-email {
             font-size: 11px;
             color: #829184;
             margin: 3px 0 10px;
         }
+
         .profile-stats-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 8px;
             margin: 14px 0 16px;
         }
+
         .profile-stat {
             background: #f6f8f5;
             border: 1px solid #e7ede5;
@@ -1263,11 +1296,13 @@
             padding: 10px 6px;
             text-align: center;
         }
+
         .profile-stat b {
             display: block;
             font-size: 15px;
             color: #3e5c42;
         }
+
         .profile-stat small {
             font-size: 8px;
             color: #8c9a8d;
@@ -1281,58 +1316,73 @@
             background: #253127;
             border-color: #354637;
         }
+
         body.dark .user-chip:hover {
             background: #2c3a2f;
         }
+
         body.dark .user-avatar {
             background: #1c231e;
             color: #fff;
         }
+
         body.dark .user-name {
             color: #e5ede3;
         }
+
         body.dark .account-btn {
             background: #222a24;
             border-color: var(--line);
             color: #e5ede3;
         }
+
         body.dark .account-btn-avatar {
             background: #2e3a30;
         }
+
         body.dark .auth-tabs {
             background: #1e2620;
         }
+
         body.dark .auth-tab {
             color: #92a494;
         }
+
         body.dark .auth-tab.active {
             background: #2c372e;
             color: #e5ede3;
         }
+
         body.dark .avatar-btn {
             background: #202721;
             border-color: #39443a;
         }
+
         body.dark .avatar-btn.selected {
             background: #2c3c2f;
             border-color: #79a77b;
         }
+
         body.dark .demo-btn {
             background: #232d25;
             border-color: #364638;
             color: #a7cca5;
         }
+
         body.dark .profile-stat {
             background: #1d241f;
             border-color: #2f3b31;
         }
+
         body.dark .profile-stat b {
             color: #d1e5cf;
         }
+
         body.dark .profile-avatar-big {
             background: #253327;
             border-color: #3d5440;
         }
+
         body.dark .auth-banner-error {
             background: #382020;
             border-color: #5c2d2d;
@@ -1478,8 +1528,8 @@
             <div id="authProfileView" hidden>
                 <div class="profile-card">
                     <div class="profile-avatar-big" id="profBigAvatar">🐼</div>
-                    <h3 class="profile-name" id="profName">Priyansh</h3>
-                    <div class="profile-email" id="profEmail">priyansh@example.com</div>
+                    <h3 class="profile-name" id="profName">john doe</h3>
+                    <div class="profile-email" id="profEmail">john.doe@example.com</div>
                     <div class="profile-stats-grid">
                         <div class="profile-stat">
                             <b id="profCoins">0</b>
@@ -1514,7 +1564,8 @@
                         </div>
                     </div>
                     <div class="modal-actions" style="margin-top:18px;">
-                        <button class="delete" id="logoutBtn" type="button" style="color:#b33939; border-color:#f8c9c9;">Log out</button>
+                        <button class="delete" id="logoutBtn" type="button"
+                            style="color:#b33939; border-color:#f8c9c9;">Log out</button>
                         <button class="save" id="saveProfBtn" type="button">Save Profile</button>
                     </div>
                 </div>
@@ -1537,13 +1588,16 @@
                     <div style="display:flex; flex-direction:column; gap:11px;">
                         <div class="field full">
                             <label for="loginIdentifier">Username or Email</label>
-                            <input id="loginIdentifier" name="identifier" autocomplete="username" placeholder="e.g. panda or you@email.com" required>
+                            <input id="loginIdentifier" name="identifier" autocomplete="username"
+                                placeholder="e.g. panda or you@email.com" required>
                         </div>
                         <div class="field full">
                             <label for="loginPassword">Password</label>
                             <div class="pwd-wrap">
-                                <input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Enter password" required>
-                                <button type="button" class="pwd-toggle" id="toggleLoginPwd" aria-label="Toggle password visibility">👁️</button>
+                                <input id="loginPassword" name="password" type="password"
+                                    autocomplete="current-password" placeholder="Enter password" required>
+                                <button type="button" class="pwd-toggle" id="toggleLoginPwd"
+                                    aria-label="Toggle password visibility">👁️</button>
                             </div>
                         </div>
                     </div>
@@ -1551,7 +1605,8 @@
                         <button class="save" id="submitLogin" type="submit">Log in to Habit App</button>
                     </div>
                     <div class="demo-login-box">
-                        <button type="button" class="demo-btn" id="demoLoginBtn">⚡ Instant Demo Login (Panda Friend)</button>
+                        <button type="button" class="demo-btn" id="demoLoginBtn">⚡ Instant Demo Login (Panda
+                            Friend)</button>
                     </div>
                 </form>
 
@@ -1564,16 +1619,21 @@
                         </div>
                         <div class="field full">
                             <label for="signupIdentifier">Username or Email</label>
-                            <input id="signupIdentifier" name="identifier" autocomplete="username" maxlength="40" placeholder="e.g. priyansh or you@email.com" required>
+                            <input id="signupIdentifier" name="identifier" autocomplete="username" maxlength="40"
+                                placeholder="e.g. priyansh or you@email.com" required>
                         </div>
                         <div class="field full">
                             <label for="signupPassword">Password</label>
                             <div class="pwd-wrap">
-                                <input id="signupPassword" name="password" type="password" autocomplete="new-password" placeholder="At least 4 characters" minlength="4" required>
-                                <button type="button" class="pwd-toggle" id="toggleSignupPwd" aria-label="Toggle password visibility">👁️</button>
+                                <input id="signupPassword" name="password" type="password" autocomplete="new-password"
+                                    placeholder="At least 4 characters" minlength="4" required>
+                                <button type="button" class="pwd-toggle" id="toggleSignupPwd"
+                                    aria-label="Toggle password visibility">👁️</button>
                             </div>
                             <div class="strength-wrap">
-                                <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+                                <div class="strength-bar">
+                                    <div class="strength-fill" id="strengthFill"></div>
+                                </div>
                                 <div class="strength-label">
                                     <span>Security</span>
                                     <span id="strengthText">Enter password</span>
@@ -1593,9 +1653,12 @@
                                 <button type="button" class="avatar-btn" data-avatar="🎨">🎨</button>
                             </div>
                         </div>
-                        <div class="field full" style="display:flex; align-items:center; gap:8px; font-size:10px; color:#68776b; margin-top:3px;">
-                            <input type="checkbox" id="keepHabitsCheck" checked style="width:14px; height:14px; accent-color:#4f7355; margin:0;">
-                            <label for="keepHabitsCheck" style="margin:0; font-weight:500; cursor:pointer;">Keep my current habits and coins in this account</label>
+                        <div class="field full"
+                            style="display:flex; align-items:center; gap:8px; font-size:10px; color:#68776b; margin-top:3px;">
+                            <input type="checkbox" id="keepHabitsCheck" checked
+                                style="width:14px; height:14px; accent-color:#4f7355; margin:0;">
+                            <label for="keepHabitsCheck" style="margin:0; font-weight:500; cursor:pointer;">Keep my
+                                current habits and coins in this account</label>
                         </div>
                     </div>
                     <div class="modal-actions" style="margin-top:16px;">
