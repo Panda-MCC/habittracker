@@ -1742,20 +1742,29 @@
 
         // ─── Firestore cloud sync helpers ────────────────────────────────
         // Each Firebase user gets a doc at "users/{uid}" containing their habits, coins, history, etc.
+        function withTimeout(promise, ms) {
+            return Promise.race([
+                promise,
+                new Promise(function (_, reject) {
+                    setTimeout(function () { reject(new Error("Timeout")); }, ms || 3500);
+                })
+            ]);
+        }
+
         async function cloudLoad(uid) {
             if (!firebaseReady || !db) return null;
             try {
-                var snap = await getDoc(doc(db, "users", uid));
-                if (snap.exists()) return snap.data();
-            } catch (e) { console.warn("Cloud load failed:", e); }
+                var snap = await withTimeout(getDoc(doc(db, "users", uid)), 3500);
+                if (snap && snap.exists()) return snap.data();
+            } catch (e) { console.warn("Cloud load failed or timed out:", e); }
             return null;
         }
 
         async function cloudSave(uid, data) {
             if (!firebaseReady || !db) return;
             try {
-                await setDoc(doc(db, "users", uid), data, { merge: true });
-            } catch (e) { console.warn("Cloud save failed:", e); }
+                await withTimeout(setDoc(doc(db, "users", uid), data, { merge: true }), 3500);
+            } catch (e) { console.warn("Cloud save failed or timed out:", e); }
         }
 
         // ─── App state ──────────────────────────────────────────────────
@@ -2022,16 +2031,18 @@
         // ─── Firebase-friendly error messages ────────────────────────────
         function friendlyError(code) {
             var map = {
-                "auth/email-already-in-use": "An account with this email already exists.",
+                "auth/email-already-in-use": "An account with this email already exists. Try logging in instead.",
                 "auth/invalid-email": "Please enter a valid email address.",
                 "auth/user-not-found": "No account found with this email.",
                 "auth/wrong-password": "Incorrect password. Please try again.",
                 "auth/weak-password": "Password must be at least 6 characters.",
                 "auth/too-many-requests": "Too many attempts. Please wait a moment.",
                 "auth/invalid-credential": "Incorrect email or password.",
-                "auth/network-request-failed": "Network error. Check your connection."
+                "auth/operation-not-allowed": "Email/Password login is not enabled in Firebase Console. Go to Authentication > Sign-in method.",
+                "auth/unauthorized-domain": "Domain not authorized. Please add panda-mcc.github.io to Authentication > Settings > Authorized domains in Firebase.",
+                "auth/network-request-failed": "Network error. Please check your connection."
             };
-            return map[code] || "Something went wrong. Please try again.";
+            return map[code] || (code ? "Firebase error: " + code : "Something went wrong. Please try again.");
         }
 
         // ─── Avatar selectors ────────────────────────────────────────────
@@ -2199,8 +2210,10 @@
                 dataToSave.avatar = signupAvatar;
                 dataToSave.displayName = name;
 
-                // Save to Firestore
-                await cloudSave(user.uid, dataToSave);
+                // Non-blocking save to Firestore (so slow Firestore doesn't hang the UI)
+                cloudSave(user.uid, dataToSave).catch(function (err) {
+                    console.warn("Initial cloud save deferred:", err);
+                });
 
                 setSession(currentUser);
                 await loadState();
@@ -2208,7 +2221,8 @@
                 closeAuthModal();
                 pop("Account created! Welcome, " + name + " ☁️🌱");
             } catch (err) {
-                showAuthError(friendlyError(err.code));
+                console.error("Signup error:", err);
+                showAuthError(friendlyError(err.code || err.message));
             } finally {
                 $("#submitSignup").disabled = false;
                 $("#submitSignup").textContent = "Create Account & Start 🌱";
