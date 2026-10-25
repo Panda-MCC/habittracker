@@ -470,6 +470,12 @@
             font-weight: 750
         }
 
+        .reminder-label {
+            margin-top: 5px;
+            color: #718273;
+            font-size: 9px
+        }
+
         .name {
             font-size: 12px;
             font-weight: 750;
@@ -1494,6 +1500,8 @@
                             type="number" min="1" max="200" value="10" required></div>
                     <div class="field"><label for="unit">Unit</label><input id="unit" name="unit" maxlength="14"
                             value="minutes" required></div>
+                        <div class="field full"><label for="reminder">Daily reminder</label><input id="reminder"
+                            name="reminder" type="time"><small>Notifications appear while this page is open.</small></div>
                     <div class="field full"><label for="reward">Coin reward</label>
                         <div class="reward-row"><input id="reward" name="reward" type="range" min="5" max="40" step="5"
                                 value="10"><b id="rewardVal">10 coins</b></div>
@@ -1728,6 +1736,7 @@
         function dateKey(d) { d = d || new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-") }
         function fresh() { return { coins: 0, day: dateKey(), habits: JSON.parse(JSON.stringify(seeds)), history: [], dark: false } }
         function esc(v) { return String(v || "").replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] }) }
+        function formatReminderTime(value) { return new Date("1970-01-01T" + value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }
 
         // ─── Session helpers (lightweight — just tracks who's logged in) ─
         function getSession() {
@@ -1830,7 +1839,8 @@
 
         function card(h) {
             var p = Math.min(h.target, h.progress || 0), pc = Math.round(p / h.target * 100), st = streak(h.id);
-            return '<article class="card ' + (h.done ? "done" : "") + '" data-card="' + esc(h.id) + '" style="--c:' + esc(h.color) + '"><div class="card-top"><div class="emoji">' + esc(h.emoji) + '</div><div class="namewrap"><span class="category">' + esc(h.category || "Daily") + '</span><div class="name">' + esc(h.name) + '</div></div><button class="edit" data-edit="' + esc(h.id) + '" aria-label="Customize">···</button></div><div class="progress-row"><span class="amount"><b class="val">' + p + '</b><small> / ' + h.target + ' ' + esc(h.unit) + '</small></span><span class="reward">🪙 ' + h.reward + ' coins</span></div><input class="progress" type="range" min="0" max="' + h.target + '" value="' + p + '" aria-label="' + esc(h.name) + ' progress" ' + (h.done ? "disabled" : "") + ' style="--fill:' + pc + '%"><div class="ends"><span>0</span><span>' + h.target + ' ' + esc(h.unit) + '</span></div><div class="card-foot"><span class="streak">🔥 ' + (st ? st + " day streak" : "A new little start") + '</span><button class="complete" data-done="' + esc(h.id) + '" ' + (h.done ? "disabled" : "") + '>' + (h.done ? "✓ Done for today" : "＋ Mark done · earn") + '</button></div></article>';
+            var reminder = h.reminder ? '<div class="reminder-label">⏰ ' + esc(formatReminderTime(h.reminder)) + '</div>' : "";
+            return '<article class="card ' + (h.done ? "done" : "") + '" data-card="' + esc(h.id) + '" style="--c:' + esc(h.color) + '"><div class="card-top"><div class="emoji">' + esc(h.emoji) + '</div><div class="namewrap"><span class="category">' + esc(h.category || "Daily") + '</span><div class="name">' + esc(h.name) + '</div>' + reminder + '</div><button class="edit" data-edit="' + esc(h.id) + '" aria-label="Customize">···</button></div><div class="progress-row"><span class="amount"><b class="val">' + p + '</b><small> / ' + h.target + ' ' + esc(h.unit) + '</small></span><span class="reward">🪙 ' + h.reward + ' coins</span></div><input class="progress" type="range" min="0" max="' + h.target + '" value="' + p + '" aria-label="' + esc(h.name) + ' progress" ' + (h.done ? "disabled" : "") + ' style="--fill:' + pc + '%"><div class="ends"><span>0</span><span>' + h.target + ' ' + esc(h.unit) + '</span></div><div class="card-foot"><span class="streak">🔥 ' + (st ? st + " day streak" : "A new little start") + '</span><button class="complete" data-done="' + esc(h.id) + '" ' + (h.done ? "disabled" : "") + '>' + (h.done ? "✓ Done for today" : "＋ Mark done · earn") + '</button></div></article>';
         }
 
         function renderWeek() {
@@ -1913,6 +1923,22 @@
             timer = setTimeout(function () { $("#toast").classList.remove("show") }, 2200);
         }
 
+        function checkReminders() {
+            if (!("Notification" in window) || Notification.permission !== "granted") return;
+            var now = new Date(), today = dateKey(now), time = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0"), notified = {};
+            try { notified = JSON.parse(localStorage.getItem("morrow-reminders-v1")) || {} } catch (e) { }
+            s.habits.forEach(function (h) {
+                if (!h.reminder || h.reminder !== time || notified[h.id] === today) return;
+                try {
+                    new Notification(h.emoji + " " + h.name, { body: "Time for your " + h.name + " habit." });
+                    notified[h.id] = today;
+                } catch (e) { }
+            });
+            try { localStorage.setItem("morrow-reminders-v1", JSON.stringify(notified)) } catch (e) { }
+        }
+        setInterval(checkReminders, 15000);
+        document.addEventListener("visibilitychange", checkReminders);
+
         function finish(id) {
             var h = s.habits.find(function (x) { return x.id === id });
             if (!h || h.done) return;
@@ -1940,6 +1966,7 @@
             $("#category").value = h ? h.category : "";
             $("#target").value = h ? h.target : 10;
             $("#unit").value = h ? h.unit : "minutes";
+            $("#reminder").value = h ? h.reminder || "" : "";
             $("#reward").value = h ? h.reward : 10;
             $("#rewardVal").textContent = $("#reward").value + " coins";
             var r = $('input[name="color"][value="' + (h ? h.color : "#79a77b") + '"]');
@@ -2319,12 +2346,16 @@
         };
         $("#reward").oninput = function (e) { $("#rewardVal").textContent = e.target.value + " coins" };
 
-        $("#form").onsubmit = function (e) {
+        $("#form").onsubmit = async function (e) {
             e.preventDefault();
             var f = new FormData(e.currentTarget),
                 old = editing ? s.habits.find(function (h) { return h.id === editing }) : null,
                 t = Math.max(1, Math.min(200, +f.get("target") || 1)),
-                h = {
+                reminder = String(f.get("reminder") || "");
+            if (reminder && "Notification" in window && Notification.permission === "default") {
+                try { await Notification.requestPermission() } catch (e) { }
+            }
+            var h = {
                     id: old ? old.id : "h" + Date.now(),
                     name: String(f.get("name")).trim(),
                     emoji: String(f.get("emoji") || "🌱"),
@@ -2333,6 +2364,7 @@
                     unit: String(f.get("unit") || "times").trim(),
                     reward: +f.get("reward") || 10,
                     color: String(f.get("color") || "#79a77b"),
+                    reminder: reminder,
                     progress: old && old.done ? t : Math.min(old ? old.progress || 0 : 0, t),
                     done: old ? old.done : false
                 };
@@ -2340,7 +2372,11 @@
             else s.habits.push(h);
             closeHabitModal();
             render();
-            pop("Habit saved 🌱");
+            if (reminder && (!("Notification" in window) || Notification.permission !== "granted")) {
+                pop("Habit saved. Enable notifications in your browser settings.");
+            } else {
+                pop("Habit saved 🌱");
+            }
         };
 
         $("#delete").onclick = function () {
